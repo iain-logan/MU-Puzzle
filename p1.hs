@@ -50,14 +50,14 @@ dSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
                                   | otherwise = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (trys+1)
 
 miuDSearch :: Puzzle -> Puzzle -> (Path, Int)
-miuDSearch start target = bSearch [[start]] target 0
+miuDSearch start target = dSearch [[start]] target 0
 
 -- What a horrible function...
 _bSearch :: [(Tree Puzzle, Path)] -> Puzzle -> Int -> (Path, Int)
 _bSearch (((UnEval miu),path):xs) target trys | miu == target = (miu:path, trys)
-                                             | otherwise = bSearch (xs ++[(growTree (UnEval miu),path)] ) target (trys+1)
-_bSearch (((Node miu ys),path):xs) target trys = bSearch (xs ++ [ (y,(miu:path)) | y <- ys ]) target trys
-_bSearch (((Leaf miu),_):xs) target trys = bSearch xs target trys
+                                             | otherwise = _bSearch (xs ++[(growTree (UnEval miu),path)] ) target (trys+1)
+_bSearch (((Node miu ys),path):xs) target trys = _bSearch (xs ++ [ (y,(miu:path)) | y <- ys ]) target trys
+_bSearch (((Leaf miu),_):xs) target trys = _bSearch xs target trys
 
 -- Apply all rules to a provided MIU puzzle
 nextStates     :: Puzzle -> [Puzzle]
