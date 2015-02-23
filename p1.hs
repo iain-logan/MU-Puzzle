@@ -3,7 +3,6 @@ module MUPuzzle where
 import Data.List
 import Parser
 
--- Possible stuff in an MIU string
 -- Recursive data type to represent an MIU string
 data MIU = M | I | U deriving (Show, Eq)
 data Puzzle = Part MIU Puzzle | End MIU deriving (Eq)
@@ -15,6 +14,7 @@ instance Show Puzzle where
 
 -- A handy tree data type for storing different rule applications
 data Tree a = Node a ([Tree a]) | Leaf a | UnEval a  deriving (Show)
+
 -- #########################
 -- MIU helper functions
 -- #########################
@@ -49,19 +49,40 @@ miuBSearch :: Puzzle -> Puzzle -> (Path, Int)
 miuBSearch start target = bSearch [[start]] target 0
 
 bSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
-bSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
-                                  | otherwise = bSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) target (trys+1)
+bSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
+                                   | otherwise     = bSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) target (tries+1)
 
 -- similar situation as above
 miuDSearch :: Puzzle -> Puzzle -> (Path, Int)
 miuDSearch start target = dSearch [[start]] target 0
 
 dSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
-dSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
-                                  | otherwise = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (trys+1)
+dSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
+                                   | otherwise     = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (tries+1)
+
+-- limited depth first search, searchs to depth n and if no solution found evaluate to false
+miuDLSearch :: Puzzle -> Puzzle -> Int -> (Path, Int)
+miuDLSearch start target depthLim = dLSearch [[start]] target depthLim 0
+
+dLSearch :: [Path] -> Puzzle -> Int -> Int -> (Path, Int)
+dLSearch [] _ _ tries = ([], tries)
+dLSearch ((miu:ys):xs) target depthLim tries | miu       == target   = (miu:ys, tries)
+                                             | length ys >= depthLim = dLSearch xs target depthLim (tries+1)
+                                             | otherwise = dLSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target depthLim (tries+1)
+
+-- iterative deepening search
+miuDIDSearch :: Puzzle -> Puzzle -> (Path, Int)
+miuDIDSearch start target = dIDSearch start target 1 0
+
+dIDSearch :: Puzzle -> Puzzle -> Int -> Int -> (Path, Int)
+dIDSearch start target depth tries = case (dLSearch [[start]] target depth tries) of
+                                       ([], dlTries) -> dIDSearch start target (depth+1) (tries+dlTries)
+                                       (path, dlTries) -> (path, tries+dlTries)
+
 -- #########################
 -- MIU rule functions
 -- #########################
+
 nextStates     :: Puzzle -> [Puzzle]
 nextStates puz = nub ((rule1 puz) ++ (rule2 puz) ++ (rule3 puz) ++ (rule4 puz))
 
@@ -89,6 +110,7 @@ rule4 (Part x xs)          = map (Part x) (rule4 xs)
 -- #########################
 -- MIU specific parser stuff
 -- #########################
+
 i :: Parser MIU
 i = (char `sat` ('I'==)) `build` makeI
     where
@@ -105,11 +127,11 @@ m = (char `sat` ('M'==)) `build` makeM
       makeM char = M
 
 miuPuz :: Parser Puzzle
-miuPuz = m # i # many (i `alt` u) `build` makePuz
+miuPuz = m # many (i `alt` u) `build` makePuz
       where
-        makePuz ((M, I), mius) = case mius of
-                                   [] -> Part M (End I)
-                                   mius -> Part M (Part I (listToPuz mius))
+        makePuz (M, mius) = case mius of
+                                   [] -> End M
+                                   mius -> Part M (listToPuz mius)
 
 parse :: Parser a -> String -> a
 parse p xs = case p xs of
