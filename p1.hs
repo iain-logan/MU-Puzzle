@@ -1,23 +1,25 @@
+module MUPuzzle where
+
 import Data.List
 import Parser
 
 -- Possible stuff in an MIU string
-data MIU = M | I | U deriving (Show, Eq)
 -- Recursive data type to represent an MIU string
--- Used for keeping a list of  puzzles
-type Path = [Puzzle]
+data MIU = M | I | U deriving (Show, Eq)
 data Puzzle = Part MIU Puzzle | End MIU deriving (Eq)
--- A handy tree data type for storing different rule applications
-data Tree a = Node a ([Tree a]) | Leaf a | UnEval a  deriving (Show)
+type Path = [Puzzle]
 
-axiom = Part M (End I)
-
--- MIU helper functions
--- Takes two MIU strings and sticks them together
 instance Show Puzzle where
     show (End x)     = show x
     show (Part x xs) = show x ++ show xs
 
+-- A handy tree data type for storing different rule applications
+data Tree a = Node a ([Tree a]) | Leaf a | UnEval a  deriving (Show)
+-- #########################
+-- MIU helper functions
+-- #########################
+
+-- Takes two MIU strings and sticks them together
 add :: Puzzle -> Puzzle -> Puzzle
 add (End x) ys     = Part x ys
 add (Part x xs) ys = Part x (add xs ys)
@@ -38,6 +40,11 @@ growTree (UnEval miu) = makeTree miu
 growTree (Node miu xs) = Node miu (map growTree xs)
 growTree tree = tree
 
+-- #########################
+-- Various searches
+-- #########################
+
+-- miuBSearch just a nice wrapper for initial parameters for the actual search (bsearch)
 miuBSearch :: Puzzle -> Puzzle -> (Path, Int)
 miuBSearch start target = bSearch [[start]] target 0
 
@@ -45,21 +52,16 @@ bSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
 bSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
                                   | otherwise = bSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) target (trys+1)
 
-dSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
-dSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
-                                  | otherwise = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (trys+1)
-
+-- similar situation as above
 miuDSearch :: Puzzle -> Puzzle -> (Path, Int)
 miuDSearch start target = dSearch [[start]] target 0
 
--- What a horrible function...
-_bSearch :: [(Tree Puzzle, Path)] -> Puzzle -> Int -> (Path, Int)
-_bSearch (((UnEval miu),path):xs) target trys | miu == target = (miu:path, trys)
-                                             | otherwise = _bSearch (xs ++[(growTree (UnEval miu),path)] ) target (trys+1)
-_bSearch (((Node miu ys),path):xs) target trys = _bSearch (xs ++ [ (y,(miu:path)) | y <- ys ]) target trys
-_bSearch (((Leaf miu),_):xs) target trys = _bSearch xs target trys
-
--- Apply all rules to a provided MIU puzzle
+dSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
+dSearch ((miu:ys):xs) target trys | miu == target = (miu:ys, trys)
+                                  | otherwise = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (trys+1)
+-- #########################
+-- MIU rule functions
+-- #########################
 nextStates     :: Puzzle -> [Puzzle]
 nextStates puz = nub ((rule1 puz) ++ (rule2 puz) ++ (rule3 puz) ++ (rule4 puz))
 
@@ -84,7 +86,9 @@ rule4 (Part x (Part U (End U))) = [End x]
 rule4 (Part U (Part U xs)) = xs : map (Part U) (rule4 (Part U xs))
 rule4 (Part x xs)          = map (Part x) (rule4 xs)
 
--- Parser stuff beings!
+-- #########################
+-- MIU specific parser stuff
+-- #########################
 i :: Parser MIU
 i = (char `sat` ('I'==)) `build` makeI
     where
