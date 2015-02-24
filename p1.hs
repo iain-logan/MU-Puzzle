@@ -52,7 +52,7 @@ bSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
 bSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
                                    | otherwise     = bSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) target (tries+1)
 
--- similar situation as above
+-- similar situation as above but depth first
 miuDSearch :: Puzzle -> Puzzle -> (Path, Int)
 miuDSearch start target = dSearch [[start]] target 0
 
@@ -60,14 +60,14 @@ dSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
 dSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
                                    | otherwise     = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (tries+1)
 
--- limited depth first search, searchs to depth n and if no solution found evaluate to false
+-- limited depth first search, searchs to depth n
 miuDLSearch :: Puzzle -> Puzzle -> Int -> (Path, Int)
 miuDLSearch start target depthLim = dLSearch [[start]] target depthLim 0
 
 dLSearch :: [Path] -> Puzzle -> Int -> Int -> (Path, Int)
 dLSearch [] _ _ tries = ([], tries)
 dLSearch ((miu:ys):xs) target depthLim tries | miu       == target   = (miu:ys, tries)
-                                             | length ys >= depthLim = dLSearch xs target depthLim (tries+1)
+                                             | length ys == depthLim = dLSearch xs target depthLim tries
                                              | otherwise = dLSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target depthLim (tries+1)
 
 -- iterative deepening search
@@ -76,8 +76,8 @@ miuDIDSearch start target = dIDSearch start target 1 0
 
 dIDSearch :: Puzzle -> Puzzle -> Int -> Int -> (Path, Int)
 dIDSearch start target depth tries = case (dLSearch [[start]] target depth tries) of
-                                       ([], dlTries) -> dIDSearch start target (depth+1) (tries+dlTries)
-                                       (path, dlTries) -> (path, tries+dlTries)
+                                       ([], dlTries) -> dIDSearch start target (depth+1) (dlTries)
+                                       (path, dlTries) -> (path, dlTries)
 
 -- #########################
 -- MIU rule functions
