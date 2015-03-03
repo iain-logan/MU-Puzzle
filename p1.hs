@@ -45,39 +45,67 @@ growTree tree = tree
 -- #########################
 
 -- miuBSearch just a nice wrapper for initial parameters for the actual search (bsearch)
-miuBSearch :: Puzzle -> Puzzle -> (Path, Int)
+miuBSearch :: Puzzle -> Puzzle -> (Path, Int, Int)
 miuBSearch start target = bSearch [[start]] target 0
 
-bSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
-bSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
+bSearch :: [Path] -> Puzzle -> Int -> (Path, Int, Int)
+bSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries, length xs)
                                    | otherwise     = bSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) target (tries+1)
 
+miuBSearchLoopCheck :: Puzzle -> Puzzle -> (Path, Int, Int)
+miuBSearchLoopCheck start target = bNoLSearch [[start]] [] target 0
+
+bNoLSearch :: [Path] -> [Puzzle] -> Puzzle -> Int -> (Path, Int, Int)
+bNoLSearch ((miu:ys):xs) visited target tries | miu == target = (miu:ys, tries, length xs)
+                                              | miu `elem` ys = bNoLSearch xs visited target tries
+                                              | miu `elem` visited = bNoLSearch xs visited target tries
+                                              | otherwise = bNoLSearch (xs ++ [(x:miu:ys) | x <- (nextStates miu)]) (miu:visited) target (tries+1)
+
 -- similar situation as above but depth first
-miuDSearch :: Puzzle -> Puzzle -> (Path, Int)
+miuDSearch :: Puzzle -> Puzzle -> (Path, Int, Int)
 miuDSearch start target = dSearch [[start]] target 0
 
-dSearch :: [Path] -> Puzzle -> Int -> (Path, Int)
-dSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries)
+dSearch :: [Path] -> Puzzle -> Int -> (Path, Int, Int)
+dSearch ((miu:ys):xs) target tries | miu == target = (miu:ys, tries, length xs)
                                    | otherwise     = dSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target (tries+1)
 
 -- limited depth first search, searchs to depth n
-miuDLSearch :: Puzzle -> Puzzle -> Int -> (Path, Int)
+miuDLSearch :: Puzzle -> Puzzle -> Int -> (Path, Int, Int)
 miuDLSearch start target depthLim = dLSearch [[start]] target depthLim 0
 
-dLSearch :: [Path] -> Puzzle -> Int -> Int -> (Path, Int)
-dLSearch [] _ _ tries = ([], tries)
-dLSearch ((miu:ys):xs) target depthLim tries | miu       == target   = (miu:ys, tries)
+dLSearch :: [Path] -> Puzzle -> Int -> Int -> (Path, Int, Int)
+dLSearch [] _ _ tries = ([], tries, 0)
+dLSearch ((miu:ys):xs) target depthLim tries | miu       == target   = (miu:ys, tries, length xs)
                                              | length ys == depthLim = dLSearch xs target depthLim tries
                                              | otherwise = dLSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) target depthLim (tries+1)
 
+miuDLSearchLoopCheck :: Puzzle -> Puzzle -> Int -> (Path, Int, Int)
+miuDLSearchLoopCheck start target depthLim = dLNoLSearch [[start]] [] target depthLim 0
+
+dLNoLSearch :: [Path] -> [Puzzle] -> Puzzle -> Int -> Int -> (Path, Int, Int)
+dLNoLSearch [] _ _ _ tries = ([], tries, 0)
+dLNoLSearch ((miu:ys):xs) visited target depthLim tries | miu == target = (miu:ys, tries, length xs)
+                                                        | length ys == depthLim = dLNoLSearch xs visited target depthLim tries
+                                                        | miu `elem` ys = dLNoLSearch xs visited target depthLim tries
+                                                        | miu `elem` visited = dLNoLSearch xs visited target depthLim tries
+                                                        | otherwise = dLNoLSearch ([(x:miu:ys) | x <- (nextStates miu)] ++ xs) (miu:visited) target depthLim (tries+1)
+
 -- iterative deepening search
-miuDIDSearch :: Puzzle -> Puzzle -> (Path, Int)
+miuDIDSearch :: Puzzle -> Puzzle -> (Path, Int, Int)
 miuDIDSearch start target = dIDSearch start target 1 0
 
-dIDSearch :: Puzzle -> Puzzle -> Int -> Int -> (Path, Int)
+dIDSearch :: Puzzle -> Puzzle -> Int -> Int -> (Path, Int, Int)
 dIDSearch start target depth tries = case (dLSearch [[start]] target depth tries) of
-                                       ([], dlTries) -> dIDSearch start target (depth+1) (dlTries)
-                                       (path, dlTries) -> (path, dlTries)
+                                       ([], dlTries, _) -> dIDSearch start target (depth+1) (dlTries)
+                                       x -> x
+
+miuDIDNoLSearch :: Puzzle -> Puzzle -> (Path, Int, Int)
+miuDIDNoLSearch start target = dIDNoLSearch start target 1 0
+
+dIDNoLSearch :: Puzzle -> Puzzle -> Int -> Int -> (Path, Int, Int)
+dIDNoLSearch start target depth tries = case (dLNoLSearch [[start]] [] target depth tries) of
+                                          ([], dlTries, _) -> dIDNoLSearch start target (depth+1) (dlTries)
+                                          x -> x
 
 -- #########################
 -- MIU rule functions
